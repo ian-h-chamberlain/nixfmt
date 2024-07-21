@@ -79,15 +79,18 @@ instance Pretty Trivium where
   pretty (LineComment c) = comment ("#" <> c) <> hardline
   pretty (BlockComment isDoc c) =
     comment (if isDoc then "/**" else "/*")
-      <> hardline
+      <> softline
       -- Indent the comment using offset instead of nest
-      <> offset 2 (hcat $ map prettyCommentLine c)
+      <> offset 2 (hcat $ map (prettyCommentLine False) $ init c)
+      <> prettyCommentLine True (last c)
       <> comment "*/"
       <> hardline
     where
-      prettyCommentLine :: Text -> Doc
-      prettyCommentLine l
+      prettyCommentLine :: Bool -> Text -> Doc
+      prettyCommentLine isLast l
         | Text.null l = emptyline
+        | l == "#" && isLast = comment l <> comment " " -- ???
+        | isLast = offset 2 (prettyCommentLine False l)
         | otherwise = comment l <> hardline
 
 instance (Pretty a) => Pretty (Item a) where
