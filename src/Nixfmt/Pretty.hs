@@ -196,6 +196,7 @@ prettyTermWide t = prettyTerm t
 prettyTerm :: Term -> Doc
 prettyTerm (Token t) = pretty t
 prettyTerm (SimpleString Ann{preTrivia, value, trailComment}) = pretty preTrivia <> prettySimpleString value <> pretty trailComment
+prettyTerm (AngleQuoteString Ann{preTrivia, value, trailComment}) = pretty preTrivia <> prettyQuotedString "«" "»" value <> pretty trailComment
 prettyTerm (IndentedString Ann{preTrivia, value, trailComment}) = pretty preTrivia <> prettyIndentedString value <> pretty trailComment
 prettyTerm (Path p) = pretty p
 prettyTerm (Selection term selectors rest) =
@@ -596,6 +597,7 @@ absorbRHS expr = case expr of
   -- Not all strings are absorbable, but in this case we always want to keep them attached.
   -- Because there's nothing to gain from having them start on a new line.
   (Term (SimpleString _)) -> hardspace <> group expr
+  (Term (AngleQuoteString _)) -> hardspace <> group expr
   (Term (IndentedString _)) -> hardspace <> group expr
   -- Same for path
   (Term (Path _)) -> hardspace <> group expr
@@ -761,6 +763,7 @@ isSimpleSelector _ = False
 
 isSimple :: Expression -> Bool
 isSimple (Term (SimpleString (LoneAnn _))) = True
+isSimple (Term (AngleQuoteString (LoneAnn _))) = True
 isSimple (Term (IndentedString (LoneAnn _))) = True
 isSimple (Term (Path (LoneAnn _))) = True
 isSimple (Term (Token (LoneAnn (Identifier _)))) = True
@@ -837,13 +840,16 @@ instance Pretty [StringPart] where
   pretty parts = hcat parts
 
 prettySimpleString :: [[StringPart]] -> Doc
-prettySimpleString parts =
+prettySimpleString = prettyQuotedString "\"" "\""
+
+prettyQuotedString :: Text -> Text -> [[StringPart]] -> Doc
+prettyQuotedString openQuote closeQuote parts =
   group $
-    text "\""
+    text openQuote
       -- Use literal \n here instead of `newline`, as the latter
       -- would cause multiline-string-style indentation which we do not want
       <> sepBy (text "\n") (map pretty parts)
-      <> text "\""
+      <> text closeQuote
 
 prettyIndentedString :: [[StringPart]] -> Doc
 prettyIndentedString parts =

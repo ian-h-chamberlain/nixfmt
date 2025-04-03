@@ -175,8 +175,8 @@ interpolationRestricted = do
     Interpolation (Whole (Term (SimpleString _)) _) -> pure interpol
     _ -> empty
 
-simpleStringPart :: Parser StringPart
-simpleStringPart =
+simpleStringPart :: Char -> Parser StringPart
+simpleStringPart closingQuote =
   TextPart
     <$> someText
       ( chunk "\\n"
@@ -185,7 +185,7 @@ simpleStringPart =
           <|> ((<>) <$> chunk "\\" <*> (Text.singleton <$> anySingle))
           <|> chunk "$$"
           <|> try (chunk "$" <* notFollowedBy (char '{'))
-          <|> someP (\t -> t /= '"' && t /= '\\' && t /= '$')
+          <|> someP (\t -> t /= closingQuote && t /= '\\' && t /= '$')
       )
 
 indentedStringPart :: Parser StringPart
@@ -305,7 +305,7 @@ fixSimpleString = map normalizeLine . splitLines
 simpleString :: Parser [[StringPart]]
 simpleString =
   rawSymbol TDoubleQuote
-    *> fmap fixSimpleString (many (simpleStringPart <|> interpolation))
+    *> fmap fixSimpleString (many (simpleStringPart '"' <|> interpolation))
     <* rawSymbol TDoubleQuote
 
 fixIndentedString :: [[StringPart]] -> [[StringPart]]
@@ -321,6 +321,14 @@ indentedString =
   rawSymbol TDoubleSingleQuote
     *> fmap fixIndentedString (sepBy indentedLine (chunk "\n"))
     <* rawSymbol TDoubleSingleQuote
+
+-- This is not a real Nix string type, but it behaves similar to double-quoted strings
+-- so we can format `nix eval`-like output with abbreviated attrsets
+angleQuoteString :: Parser [[StringPart]]
+angleQuoteString =
+  rawSymbol TAngleQuoteOpen
+    *> fmap fixSimpleString (many (simpleStringPart '»' <|> interpolation))
+    <* rawSymbol TAngleQuoteClose
 
 -- TERMS
 
@@ -357,6 +365,7 @@ selectorPath' = many $ try $ selector $ Just $ symbol TDot
 simpleTerm :: Parser Term
 simpleTerm =
   (SimpleString <$> lexeme (simpleString <|> uri))
+    <|> (AngleQuoteString <$> lexeme angleQuoteString)
     <|> (IndentedString <$> lexeme indentedString)
     <|> (Path <$> path)
     <|> (Token <$> (envPath <|> float <|> integer <|> identifier))

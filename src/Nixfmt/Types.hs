@@ -168,6 +168,8 @@ data Term
     SimpleString String
   | -- '' String
     IndentedString String
+  | -- e.g. «primop elem»
+    AngleQuoteString String
   | Path Path
   | List Leaf (Items Term) Leaf
   | Set (Maybe Leaf) Leaf (Items Binder) Leaf
@@ -335,6 +337,7 @@ instance LanguageElement Term where
   mapFirstToken' f = \case
     (Token leaf) -> first Token (f leaf)
     (SimpleString string) -> first SimpleString (f string)
+    (AngleQuoteString string) -> first AngleQuoteString (f string)
     (IndentedString string) -> first IndentedString (f string)
     (Path path) -> first Path (f path)
     (List open items close) -> first (\open' -> List open' items close) (f open)
@@ -346,6 +349,7 @@ instance LanguageElement Term where
   mapLastToken' f = \case
     (Token leaf) -> first Token (f leaf)
     (SimpleString string) -> first SimpleString (f string)
+    (AngleQuoteString string) -> first AngleQuoteString (f string)
     (IndentedString string) -> first IndentedString (f string)
     (Path path) -> first Path (f path)
     (List open items close) -> first (List open items) (f close)
@@ -393,6 +397,7 @@ instance LanguageElement Term where
   mapAllTokens f = \case
     (Token leaf) -> Token (f leaf)
     (SimpleString string) -> SimpleString (f string)
+    (AngleQuoteString string) -> AngleQuoteString (f string)
     (IndentedString string) -> IndentedString (f string)
     (Path path) -> Path (f path)
     (List open items close) -> List (f open) (mapAllTokens f <$> items) (f close)
@@ -517,6 +522,8 @@ data Token
   | TDot
   | TDoubleQuote
   | TDoubleSingleQuote
+  | TAngleQuoteOpen
+  | TAngleQuoteClose
   | TEllipsis
   | TQuestion
   | TSemicolon
@@ -616,6 +623,8 @@ tokenText TComma = ","
 tokenText TDot = "."
 tokenText TDoubleQuote = "\""
 tokenText TDoubleSingleQuote = "''"
+tokenText TAngleQuoteOpen = "«"
+tokenText TAngleQuoteClose = "»"
 tokenText TEllipsis = "..."
 tokenText TQuestion = "?"
 tokenText TSemicolon = ";"
